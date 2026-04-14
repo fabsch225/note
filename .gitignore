@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode / SwiftPM
+DerivedData/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.xcuserdata/
+*.xcodeproj/
+*.xcworkspace/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# App bundles / debug symbols
+*.app/
+*.dSYM/
+
+# Build/release outputs (from scripts)
+dist/
+release/
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log
