@@ -187,9 +187,7 @@ final class SettingsWindowController {
         window.center()
 
         NotificationCenter.default.addObserver(forName: .notePopShowSettings, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in
-                self?.show()
-            }
+            self?.show()
         }
     }
 
