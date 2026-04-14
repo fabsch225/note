@@ -38,13 +38,20 @@ Export writes directly to your Obsidian vault’s daily note file (it does **not
 
 If export fails, you’ll get an alert with the error details.
 
-## Downloadable builds (GitHub Actions)
+## Downloadable builds (manual)
 
-This repo includes a GitHub Actions workflow that builds `NotePop.app` and zips it.
+This repo does not auto-build in CI.
 
-- For every push/PR: the zip is available as an **Actions artifact**.
-- For version tags (e.g. `v0.1.0`): the workflow also publishes the zip as a **GitHub Release asset**.
+To publish a downloadable build, build locally and push a GitHub Release:
 
-To create a release:
+- `chmod +x scripts/release.sh`
+- `scripts/release.sh 0.1.0`
 
-- Create and push a tag: `git tag v0.1.0 && git push origin v0.1.0`
+This will:
+
+- Build `dist/NotePop.app`
+- Create `dist/NotePop-v0.1.0-macOS.zip`
+- Create and push a git tag `v0.1.0`
+- Create a GitHub Release for that tag and upload the zip (requires GitHub CLI `gh`)
+
+Note: without Apple code signing + notarization, macOS Gatekeeper may warn on first run. Users can usually bypass via right click → Open.
