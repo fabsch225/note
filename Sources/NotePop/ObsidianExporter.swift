@@ -45,50 +45,173 @@ final class ObsidianExporter {
         guard !trimmedNote.isEmpty else { return }
 
         try await Task.detached(priority: .userInitiated) { () throws -> Void in
-            let dailyPathOut = try ObsidianCLI.runAndCaptureStdout(arguments: ["daily:path"])
-            let dailyPathRaw = ObsidianCLIOutput.stripNoise(dailyPathOut)
-            let dailyPath = ObsidianCLIOutput.extractDailyPath(from: dailyPathRaw)
-            guard !dailyPath.isEmpty else { throw ExportError.invalidDailyPath(dailyPathRaw) }
+            // Avoid launching Obsidian (which can create transient Dock icons) by writing directly
+            // to the daily note file based on Obsidian's local config.
+            let dailyURL = try ObsidianLocalDailyNoteLocator.todaysDailyNoteURL()
 
-            let currentOut = try ObsidianCLI.runAndCaptureStdout(arguments: ["daily:read"])
-            let current = ObsidianCLIOutput.stripNoise(currentOut)
-                .replacingOccurrences(of: "\r\n", with: "\n")
-
-            let updated = MarkdownDailyNoteInserter.insert(
-                note: trimmedNote,
-                into: current,
-                underHeader: dailyHeader
-            )
-
-            // Prefer CLI write-back for small-ish notes; fall back to direct file write for large notes.
-            // This avoids command-line length limits with huge daily notes.
-            let encoded = ObsidianCLI.encodeContentValue(updated)
-            if encoded.utf8.count <= 180_000 {
-                _ = try ObsidianCLI.runAndCaptureStdout(arguments: [
-                    "create",
-                    "path=\(dailyPath)",
-                    "overwrite",
-                    "content=\(encoded)"
-                ])
+            let current: String
+            if let data = try? Data(contentsOf: dailyURL), let str = String(data: data, encoding: .utf8) {
+                current = str.replacingOccurrences(of: "\r\n", with: "\n")
             } else {
-                let vaultOut = try ObsidianCLI.runAndCaptureStdout(arguments: ["vault", "info=path"])
-                let vaultPathRaw = ObsidianCLIOutput.stripNoise(vaultOut)
-                let vaultPath = ObsidianCLIOutput.extractLastNonEmptyLine(from: vaultPathRaw)
-                guard !vaultPath.isEmpty else { throw ExportError.invalidVaultPath(vaultPathRaw) }
-
-                let dailyURL: URL
-                if dailyPath.hasPrefix("/") {
-                    dailyURL = URL(fileURLWithPath: dailyPath)
-                } else {
-                    dailyURL = URL(fileURLWithPath: vaultPath).appendingPathComponent(dailyPath)
-                }
-
-                let dirURL = dailyURL.deletingLastPathComponent()
-                try FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true)
-                let data = Data(updated.utf8)
-                try data.write(to: dailyURL, options: .atomic)
+                current = ""
             }
+
+            let updated = MarkdownDailyNoteInserter.insert(note: trimmedNote, into: current, underHeader: dailyHeader)
+
+            let dirURL = dailyURL.deletingLastPathComponent()
+            try FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true)
+            try Data(updated.utf8).write(to: dailyURL, options: .atomic)
         }.value
+    }
+}
+
+enum ObsidianLocalDailyNoteLocator {
+    private struct VaultInfo {
+        let id: String
+        let path: String
+    }
+
+    private struct DailyNoteSettings {
+        let folder: String
+        let format: String
+    }
+
+    static func todaysDailyNoteURL(now: Date = Date()) throws -> URL {
+        let vaultURL = try preferredVaultURL()
+        let settings = readDailyNoteSettings(vaultURL: vaultURL)
+
+        let filename = dailyFilename(for: now, momentFormat: settings.format)
+        var relativePath = "\(filename).md"
+
+        let trimmedFolder = settings.folder.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedFolder.isEmpty {
+            let folderPath = trimmedFolder
+                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            relativePath = folderPath + "/" + relativePath
+        }
+
+        return vaultURL.appendingPathComponent(relativePath)
+    }
+
+    private static func preferredVaultURL() throws -> URL {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let obsidianConfigURL = home
+            .appendingPathComponent("Library")
+            .appendingPathComponent("Application Support")
+            .appendingPathComponent("obsidian")
+            .appendingPathComponent("obsidian.json")
+
+        guard let data = try? Data(contentsOf: obsidianConfigURL) else {
+            throw ExportError.invalidVaultPath("Missing Obsidian config at: \(obsidianConfigURL.path)")
+        }
+
+        let jsonAny = try JSONSerialization.jsonObject(with: data)
+        guard let json = jsonAny as? [String: Any] else {
+            throw ExportError.invalidVaultPath("Invalid Obsidian config JSON")
+        }
+
+        let preferredID = (json["activeVault"] as? String)
+            ?? (json["lastActiveVault"] as? String)
+            ?? (json["lastOpenVault"] as? String)
+            ?? (json["lastVaultId"] as? String)
+
+        let vaultsAny = json["vaults"]
+        guard let vaultsDict = vaultsAny as? [String: Any] else {
+            throw ExportError.invalidVaultPath("Obsidian config missing 'vaults'")
+        }
+
+        var vaults: [VaultInfo] = []
+        vaults.reserveCapacity(vaultsDict.count)
+        for (id, value) in vaultsDict {
+            guard let info = value as? [String: Any] else { continue }
+            if let path = info["path"] as? String, !path.isEmpty {
+                vaults.append(VaultInfo(id: id, path: path))
+            }
+        }
+
+        if let preferredID, let match = vaults.first(where: { $0.id == preferredID }) {
+            return URL(fileURLWithPath: match.path)
+        }
+
+        // If we can't determine a preferred vault, fall back to a stable choice.
+        if let only = vaults.first, vaults.count == 1 {
+            return URL(fileURLWithPath: only.path)
+        }
+        if let firstStable = vaults.sorted(by: { $0.id < $1.id }).first {
+            return URL(fileURLWithPath: firstStable.path)
+        }
+
+        throw ExportError.invalidVaultPath("No vault paths found in Obsidian config")
+    }
+
+    private static func readDailyNoteSettings(vaultURL: URL) -> DailyNoteSettings {
+        let settingsURL = vaultURL
+            .appendingPathComponent(".obsidian")
+            .appendingPathComponent("daily-notes.json")
+
+        guard let data = try? Data(contentsOf: settingsURL),
+              let jsonAny = try? JSONSerialization.jsonObject(with: data),
+              let json = jsonAny as? [String: Any]
+        else {
+            return DailyNoteSettings(folder: "", format: "YYYY-MM-DD")
+        }
+
+        let folder = (json["folder"] as? String) ?? ""
+        let format = (json["format"] as? String) ?? "YYYY-MM-DD"
+        return DailyNoteSettings(folder: folder, format: format)
+    }
+
+    private static func dailyFilename(for date: Date, momentFormat: String) -> String {
+        let fmt = momentFormat.trimmingCharacters(in: .whitespacesAndNewlines)
+        let dateFormat = momentToICUDateFormat(fmt)
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = dateFormat
+        return formatter.string(from: date)
+    }
+
+    private static func momentToICUDateFormat(_ moment: String) -> String {
+        // Minimal Moment.js -> ICU mapping for common Obsidian daily note formats.
+        // If we can't map it cleanly, fall back to a safe default.
+        if moment.isEmpty { return "yyyy-MM-dd" }
+
+        var s = moment
+        // Moment literals are written like [text]
+        s = s.replacingOccurrences(of: "[", with: "")
+        s = s.replacingOccurrences(of: "]", with: "")
+
+        // Replace longer tokens first.
+        let replacements: [(String, String)] = [
+            ("YYYY", "yyyy"),
+            ("YY", "yy"),
+            ("MMMM", "MMMM"),
+            ("MMM", "MMM"),
+            ("MM", "MM"),
+            ("DD", "dd"),
+            ("D", "d"),
+            ("dddd", "EEEE"),
+            ("ddd", "EEE"),
+            ("HH", "HH"),
+            ("H", "H"),
+            ("mm", "mm")
+        ]
+        for (from, to) in replacements {
+            s = s.replacingOccurrences(of: from, with: to)
+        }
+
+        // If there are still obvious Moment tokens left, use a default.
+        if s.range(of: "[A-Za-z]", options: .regularExpression) != nil {
+            // Allow ICU letters; but if the original had tokens we didn't replace, this is risky.
+            // Heuristic: if it still contains common Moment tokens, fall back.
+            let suspicious = ["Do", "Qo", "X", "x", "ww", "Wo"]
+            if suspicious.contains(where: { moment.contains($0) }) {
+                return "yyyy-MM-dd"
+            }
+        }
+
+        return s
     }
 }
 

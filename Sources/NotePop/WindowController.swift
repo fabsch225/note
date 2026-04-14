@@ -25,7 +25,7 @@ final class NoteWindowController {
 
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 240),
-            styleMask: [.titled, .resizable],
+            styleMask: [.titled, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -134,12 +134,23 @@ final class NoteWindowController {
 
     @MainActor
     private func exportNote() async {
+        if appState.isExporting { return }
+        appState.isExporting = true
+        let start = CFAbsoluteTimeGetCurrent()
         do {
             try await appState.exporter.export(noteText: appState.noteText)
             appState.noteText = ""
         } catch {
             NSAlert(error: error).runModal()
         }
+
+        let elapsed = CFAbsoluteTimeGetCurrent() - start
+        let minimum: Double = 0.5
+        if elapsed < minimum {
+            let remaining = minimum - elapsed
+            try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+        }
+        appState.isExporting = false
     }
 
     deinit {

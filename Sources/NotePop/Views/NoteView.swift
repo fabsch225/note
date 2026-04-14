@@ -6,12 +6,42 @@ struct NoteView: View {
     @State private var focusToken: Int = 0
 
     var body: some View {
-        NativeTextView(text: $appState.noteText, focusToken: $focusToken)
-            .padding(12)
-            .background(Color.clear)
-            .onReceive(NotificationCenter.default.publisher(for: .notePopFocusEditor)) { _ in
-                focusToken &+= 1
+        ZStack(alignment: .topTrailing) {
+            NativeTextView(
+                text: $appState.noteText,
+                focusToken: $focusToken,
+                isEditable: !appState.isExporting
+            )
+
+            if appState.isExporting {
+                ExportingBadge()
+                    .padding(10)
+                    .transition(.opacity)
             }
+        }
+        .padding(12)
+        .background(Color.clear)
+        .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.5), value: appState.isExporting)
+        .onReceive(NotificationCenter.default.publisher(for: .notePopFocusEditor)) { _ in
+            focusToken &+= 1
+        }
+    }
+}
+
+private struct ExportingBadge: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+                .controlSize(.small)
+            Text("Exporting…")
+                .font(.system(size: 12, weight: .medium))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial)
+        .clipShape(Capsule())
+        .allowsHitTesting(false)
     }
 }
 
@@ -19,6 +49,7 @@ struct NoteView: View {
 struct NativeTextView: NSViewRepresentable {
     @Binding var text: String
     @Binding var focusToken: Int
+    var isEditable: Bool
 
     func makeNSView(context: Context) -> NSScrollView {
         let textView = NSTextView()
@@ -45,6 +76,11 @@ struct NativeTextView: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         guard let textView = nsView.documentView as? NSTextView else { return }
+
+        if textView.isEditable != isEditable {
+            textView.isEditable = isEditable
+            textView.isSelectable = true
+        }
 
         if textView.string != text {
             textView.string = text
