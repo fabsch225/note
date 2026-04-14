@@ -307,7 +307,7 @@ relocations:
   - { offset: 0x10E761, size: 0x8, addend: 0x0, symName: '_$sxIeAgHr_xs5Error_pIegHrzo_s8SendableRzs5NeverORs_r0_lTRyt_Tg5TQ0_', symObjAddr: 0x1B20, symBinAddr: 0x1000101C8, symSize: 0x40 }
   - { offset: 0x10E796, size: 0x8, addend: 0x0, symName: '_$ss12_ArrayBufferV19_getElementSlowPathyyXlSiF7Combine14AnyCancellableC_Tg5', symObjAddr: 0x1B60, symBinAddr: 0x100010208, symSize: 0x1A8 }
   - { offset: 0x10E8A6, size: 0x8, addend: 0x0, symName: '_$sSh21_nonEmptyArrayLiteralShyxGSayxG_tcfC7Combine14AnyCancellableC_Tt0g5Tf4g_n', symObjAddr: 0x1D08, symBinAddr: 0x1000103B0, symSize: 0x268 }
-  - { offset: 0x10EB07, size: 0x8, addend: 0x0, symName: '_$s7NotePop24SettingsWindowControllerC8settingsAcA0C5StoreC_tcfcy10Foundation12NotificationVYbcfU_TA', symObjAddr: 0x2B28, symBinAddr: 0x10001117C, symSize: 0x8 }
+  - { offset: 0x10EB07, size: 0x8, addend: 0x0, symName: '_$s7NotePop24SettingsWindowControllerC8settingsAcA0C5StoreC_tcfcy10Foundation12NotificationVYbScMYccfU_TA', symObjAddr: 0x2B28, symBinAddr: 0x10001117C, symSize: 0x8 }
   - { offset: 0x10EB1B, size: 0x8, addend: 0x0, symName: _block_copy_helper, symObjAddr: 0x2B30, symBinAddr: 0x100011184, symSize: 0x14 }
   - { offset: 0x10EB2F, size: 0x8, addend: 0x0, symName: _block_destroy_helper, symObjAddr: 0x2B44, symBinAddr: 0x100011198, symSize: 0x8 }
   - { offset: 0x10EB4E, size: 0x8, addend: 0x0, symName: '_$sSo9NSRunLoopCMa', symObjAddr: 0x2B74, symBinAddr: 0x1000111C8, symSize: 0x44 }
@@ -341,7 +341,7 @@ relocations:
   - { offset: 0x10F5B3, size: 0x8, addend: 0x0, symName: '_$sScTss5NeverORs_rlE4name8priority9operationScTyxABGSSSg_ScPSgxyYaYAcntcfCyt_Tt2g5', symObjAddr: 0xFE0, symBinAddr: 0x10000F6E8, symSize: 0x29C }
   - { offset: 0x10F63F, size: 0x8, addend: 0x0, symName: '_$s7NotePop0A16WindowControllerCfd', symObjAddr: 0x159C, symBinAddr: 0x10000FCA4, symSize: 0x104 }
   - { offset: 0x10F67B, size: 0x8, addend: 0x0, symName: '_$s7NotePop0A16WindowControllerCfD', symObjAddr: 0x16A0, symBinAddr: 0x10000FDA8, symSize: 0x20 }
-  - { offset: 0x10F6DF, size: 0x8, addend: 0x0, symName: '_$s7NotePop24SettingsWindowControllerC8settingsAcA0C5StoreC_tcfcy10Foundation12NotificationVYbcfU_', symObjAddr: 0x16E0, symBinAddr: 0x10000FDE8, symSize: 0x78 }
+  - { offset: 0x10F6DF, size: 0x8, addend: 0x0, symName: '_$s7NotePop24SettingsWindowControllerC8settingsAcA0C5StoreC_tcfcy10Foundation12NotificationVYbScMYccfU_', symObjAddr: 0x16E0, symBinAddr: 0x10000FDE8, symSize: 0x78 }
   - { offset: 0x10F750, size: 0x8, addend: 0x0, symName: '_$s7NotePop24SettingsWindowControllerCfD', symObjAddr: 0x17FC, symBinAddr: 0x10000FF04, symSize: 0x2C }
   - { offset: 0x10F8CA, size: 0x8, addend: 0x0, symName: '_$s7NotePop0A16WindowControllerC8appStateAcA03AppF0C_tcfcTf4gn_n', symObjAddr: 0x1F70, symBinAddr: 0x100010618, symSize: 0x7B4 }
   - { offset: 0x10FAF4, size: 0x8, addend: 0x0, symName: '_$s7NotePop24SettingsWindowControllerC8settingsAcA0C5StoreC_tcfcTf4gn_n', symObjAddr: 0x2724, symBinAddr: 0x100010DCC, symSize: 0x38C }

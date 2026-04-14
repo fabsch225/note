@@ -186,7 +186,7 @@ final class SettingsWindowController {
         window.contentView = hosting
         window.center()
 
-        NotificationCenter.default.addObserver(forName: .notePopShowSettings, object: nil, queue: .main) { [weak self] _ in
+        NotificationCenter.default.addObserver(forName: .notePopShowSettings, object: nil, queue: .main) { @MainActor [weak self] _ in
             self?.show()
         }
     }
