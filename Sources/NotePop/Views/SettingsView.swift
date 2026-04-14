@@ -26,7 +26,7 @@ struct SettingsView: View {
             Text("Obsidian export")
                 .font(.headline)
 
-            Text("Uses the `obsidian` CLI from PATH.")
+            Text("Writes directly to your vault’s daily note (does not launch Obsidian).")
                 .foregroundStyle(.secondary)
 
             TextField("Insert under header", text: $settings.dailyHeader)

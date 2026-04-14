@@ -1,0 +1,73 @@
+name: Build macOS app
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build .app bundle
+        run: |
+          bash scripts/build-app-bundle.sh
+
+      - name: Zip app
+        id: zip
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APP_NAME="NotePop"
+          APP_PATH="dist/${APP_NAME}.app"
+
+          if [[ ! -d "$APP_PATH" ]]; then
+            echo "Missing app bundle at $APP_PATH" >&2
+            ls -la dist || true
+            exit 1
+          fi
+
+          REF_NAME="${GITHUB_REF_NAME}"
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            ZIP_BASENAME="${APP_NAME}-${REF_NAME}"
+          else
+            ZIP_BASENAME="${APP_NAME}-${SHORT_SHA}"
+          fi
+          ZIP_NAME="${ZIP_BASENAME}.zip"
+
+          mkdir -p out
+
+          # Use ditto so the app bundle stays intact (resource forks, etc.)
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "out/$ZIP_NAME"
+
+          SHA256=$(/usr/bin/shasum -a 256 "out/$ZIP_NAME" | awk '{print $1}')
+
+          echo "zip_name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NotePop-macOS
+          path: out/*.zip
+          if-no-files-found: error
+
+      - name: Publish GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.zip
+          generate_release_notes: true

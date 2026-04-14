@@ -10,18 +10,18 @@ enum ExportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .obsidianNotFound:
-            return "Could not find the `obsidian` CLI. Install/update Obsidian to a version with CLI support, and ensure apps can see it in PATH (common locations: /opt/homebrew/bin, /usr/local/bin)."
+            return "Could not find the `obsidian` CLI. (NotePop normally exports without launching Obsidian; this error only applies if CLI fallback is used.)"
         case .failedToLaunch(let message):
-            return "Failed to run Obsidian CLI: \(message)"
+            return "Failed to run helper process: \(message)"
         case .nonZeroExit(let code, let stderr):
             if stderr.isEmpty {
                 return "Obsidian CLI exited with code \(code)."
             }
             return "Obsidian CLI exited with code \(code): \(stderr)"
         case .invalidDailyPath(let value):
-            return "Obsidian CLI returned an invalid daily note path: \(value)"
+            return "Could not determine the daily note path: \(value)"
         case .invalidVaultPath(let value):
-            return "Obsidian CLI returned an invalid vault path: \(value)"
+            return "Could not determine the Obsidian vault path: \(value)"
         }
     }
 }
