@@ -35,11 +35,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func toggleNoteWindow() {
         guard let noteWindowController else { return }
 
-        if noteWindowController.isVisible {
+        if !noteWindowController.isVisible {
+            NSApp.activate(ignoringOtherApps: true)
+            noteWindowController.show()
+            return
+        }
+
+        // If the window is visible but not active (user clicked elsewhere), the hotkey
+        // should bring it forward instead of hiding it.
+        if noteWindowController.isKeyOrMain {
             noteWindowController.hide()
         } else {
             NSApp.activate(ignoringOtherApps: true)
-            noteWindowController.show()
+            noteWindowController.bringToFront()
         }
     }
 

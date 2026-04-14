@@ -8,7 +8,7 @@ struct NoteView: View {
     var body: some View {
         NativeTextView(text: $appState.noteText, focusToken: $focusToken)
             .padding(12)
-            .background(Color(nsColor: .textBackgroundColor))
+            .background(Color.clear)
             .onReceive(NotificationCenter.default.publisher(for: .notePopFocusEditor)) { _ in
                 focusToken &+= 1
             }
@@ -27,11 +27,16 @@ struct NativeTextView: NSViewRepresentable {
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = true
         textView.font = .systemFont(ofSize: NSFont.systemFontSize)
+        textView.drawsBackground = false
+        textView.backgroundColor = .clear
         textView.delegate = context.coordinator
         textView.textContainerInset = NSSize(width: 2, height: 6)
 
         let scrollView = NSScrollView()
+        // Keep the scroller layout stable; we'll fade/disable it when not needed.
         scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
         scrollView.drawsBackground = false
         scrollView.documentView = textView
 
@@ -45,12 +50,35 @@ struct NativeTextView: NSViewRepresentable {
             textView.string = text
         }
 
+        updateScrollbarVisibility(scrollView: nsView, textView: textView)
+
         // When focusToken changes, focus the text view.
         if context.coordinator.lastFocusToken != focusToken {
             context.coordinator.lastFocusToken = focusToken
             DispatchQueue.main.async {
                 textView.window?.makeFirstResponder(textView)
             }
+        }
+    }
+
+    private func updateScrollbarVisibility(scrollView: NSScrollView, textView: NSTextView) {
+        guard let layoutManager = textView.layoutManager, let textContainer = textView.textContainer else { return }
+
+        layoutManager.ensureLayout(for: textContainer)
+        let usedRect = layoutManager.usedRect(for: textContainer)
+
+        // Account for text container insets.
+        let contentHeight = usedRect.height + (textView.textContainerInset.height * 2)
+        let visibleHeight = scrollView.contentView.bounds.height
+
+        // Only show a scrollbar if scrolling is actually needed.
+        let needsScroll = contentHeight > (visibleHeight + 1)
+
+        // Avoid toggling hasVerticalScroller (can cause constraint churn during layout).
+        // Instead, fade/disable the scroller when it isn't needed.
+        if let scroller = scrollView.verticalScroller {
+            scroller.isEnabled = needsScroll
+            scroller.alphaValue = needsScroll ? 1.0 : 0.0
         }
     }
 

@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 @MainActor
@@ -7,18 +8,24 @@ final class NoteWindowController {
 
     private(set) var window: NSWindow
     private var localKeyMonitor: Any?
+    private var cancellables: Set<AnyCancellable> = []
 
     var isVisible: Bool { window.isVisible }
+    var isKeyOrMain: Bool { window.isKeyWindow || window.isMainWindow }
 
     init(appState: AppState) {
         self.appState = appState
 
         let contentView = NoteView(appState: appState)
         let hosting = NSHostingView(rootView: contentView)
+        if #available(macOS 13.0, *) {
+            hosting.sizingOptions = []
+        }
+        hosting.autoresizingMask = [.width, .height]
 
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 320),
-            styleMask: [.titled, .fullSizeContentView],
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 240),
+            styleMask: [.titled, .resizable],
             backing: .buffered,
             defer: false
         )
@@ -27,8 +34,12 @@ final class NoteWindowController {
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
         window.isMovableByWindowBackground = true
+        window.isOpaque = false
+        window.alphaValue = 1.0
+        applyWindowBackgroundOpacity(appState.settings.windowOpacity)
         window.level = appState.isPinned ? .floating : .normal
         window.collectionBehavior = [.moveToActiveSpace]
+        window.minSize = NSSize(width: 320, height: 180)
 
         window.standardWindowButton(.closeButton)?.isHidden = true
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
@@ -38,9 +49,27 @@ final class NoteWindowController {
         window.center()
 
         installKeyMonitor()
+
+        appState.settings.$windowOpacity
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newValue in
+                self?.applyWindowBackgroundOpacity(newValue)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func applyWindowBackgroundOpacity(_ opacity: Double) {
+        let clamped = min(max(opacity, 0.0), 1.0)
+        window.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(clamped)
     }
 
     func show() {
+        applyPinnedState()
+        window.makeKeyAndOrderFront(nil)
+        focusEditor()
+    }
+
+    func bringToFront() {
         applyPinnedState()
         window.makeKeyAndOrderFront(nil)
         focusEditor()
@@ -107,6 +136,7 @@ final class NoteWindowController {
     private func exportNote() async {
         do {
             try await appState.exporter.export(noteText: appState.noteText)
+            appState.noteText = ""
         } catch {
             NSAlert(error: error).runModal()
         }
@@ -129,6 +159,10 @@ final class SettingsWindowController {
 
         let view = SettingsView(settings: settings)
         let hosting = NSHostingView(rootView: view)
+        if #available(macOS 13.0, *) {
+            hosting.sizingOptions = []
+        }
+        hosting.autoresizingMask = [.width, .height]
 
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 560, height: 220),

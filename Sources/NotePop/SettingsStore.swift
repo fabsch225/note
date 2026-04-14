@@ -4,28 +4,22 @@ import Foundation
 final class SettingsStore: ObservableObject {
     private enum Keys {
         static let startPinned = "startPinned"
-        static let obsidianCLIPath = "obsidianCLIPath"
-        static let obsidianCLIArgs = "obsidianCLIArgs"
         static let dailyHeader = "dailyHeader"
+        static let windowOpacity = "windowOpacity"
     }
 
     @Published var startPinned: Bool {
         didSet { defaults.set(startPinned, forKey: Keys.startPinned) }
     }
 
-    /// Executable name or full path, e.g. `obsidian` or `/opt/homebrew/bin/obsidian`.
-    @Published var obsidianCLIPath: String {
-        didSet { defaults.set(obsidianCLIPath, forKey: Keys.obsidianCLIPath) }
-    }
-
-    /// Arguments string, split like a shell (quotes supported). You can use `{header}` placeholder.
-    @Published var obsidianCLIArgs: String {
-        didSet { defaults.set(obsidianCLIArgs, forKey: Keys.obsidianCLIArgs) }
-    }
-
     /// Header text to insert under in the daily note.
     @Published var dailyHeader: String {
         didSet { defaults.set(dailyHeader, forKey: Keys.dailyHeader) }
+    }
+
+    /// Window opacity in the range 0.0...1.0.
+    @Published var windowOpacity: Double {
+        didSet { defaults.set(windowOpacity, forKey: Keys.windowOpacity) }
     }
 
     // Global hotkey: Option+Space by default.
@@ -38,8 +32,18 @@ final class SettingsStore: ObservableObject {
         self.defaults = defaults
 
         self.startPinned = defaults.object(forKey: Keys.startPinned) as? Bool ?? false
-        self.obsidianCLIPath = defaults.string(forKey: Keys.obsidianCLIPath) ?? ""
-        self.obsidianCLIArgs = defaults.string(forKey: Keys.obsidianCLIArgs) ?? ""
         self.dailyHeader = defaults.string(forKey: Keys.dailyHeader) ?? "Quick Notes"
+        // Keep opacity within the UI slider range so the window can't become "lost" (fully invisible).
+        let minOpacity = 0.70
+        let savedOpacity = defaults.object(forKey: Keys.windowOpacity) as? Double
+        if let savedOpacity {
+            let clamped = min(max(savedOpacity, minOpacity), 1.0)
+            self.windowOpacity = clamped
+            if clamped != savedOpacity {
+                defaults.set(clamped, forKey: Keys.windowOpacity)
+            }
+        } else {
+            self.windowOpacity = 1.0
+        }
     }
 }

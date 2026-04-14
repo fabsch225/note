@@ -27,16 +27,13 @@ Output: `dist/NotePop.app`
 
 In Settings (Cmd+,), configure:
 
-- **CLI executable path**: the Obsidian CLI binary (full path recommended)
-- **CLI arguments**: arguments as you’d type them in a shell; quotes are supported
-- **Daily note header**: value substituted into `{header}`
+- **Daily note header**: the heading to insert under in today’s daily note
 
-If you set the CLI path to a bare command name (no `/`), it’s resolved via `$PATH`.
+Export uses the `obsidian` CLI from `$PATH` (no command/args configuration), and updates the daily note by:
 
-The app sends the note text to the CLI over **stdin**.
-
-Because different Obsidian CLIs exist, you should set the exact command/args that work on your machine. Example pattern (adjust to your CLI):
-
-- Args like: `daily-note append --heading "{header}" --stdin`
+- Reading today’s daily note
+- Inserting your note *under the configured header* (without disturbing the rest of the file)
+- Writing the full updated content back
+- Clearing the note window after a successful export
 
 If export fails, you’ll get an alert with the CLI’s stderr.
