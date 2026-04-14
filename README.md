@@ -1,6 +1,6 @@
 # NotePop
 
-A tiny macOS SwiftUI note window that lives off the Dock/menu bar and pops up with a global hotkey.
+A tiny macOS SwiftUI note window that lives off the Dock/menu bar and pops up with a global hotkey. You will have to build locally, as i dont have an apple developer license.
 
 ## Build & run
 
