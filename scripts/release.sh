@@ -42,8 +42,8 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-if git rev-parse "$TAG" >/dev/null 2>&1; then
-  echo "Tag $TAG already exists." >&2
+if git rev-parse "${TAG}" >/dev/null 2>&1; then
+  echo "Tag ${TAG} already exists." >&2
   exit 1
 fi
 
@@ -75,14 +75,14 @@ SHA256=$(/usr/bin/shasum -a 256 "$ZIP_PATH" | awk '{print $1}')
 
 echo "SHA-256: $SHA256"
 
-echo "Tagging $TAG…"
-git tag -a "$TAG" -m "Release $TAG"
+echo "Tagging ${TAG}…"
+git tag -a "${TAG}" -m "Release ${TAG}"
 
 echo "Pushing tag…"
-git push origin "$TAG"
+git push origin "${TAG}"
 
 echo "Creating GitHub Release and uploading asset…"
-TITLE="$APP_NAME $TAG"
+TITLE="$APP_NAME ${TAG}"
 NOTES=$(cat <<TXT
 macOS build: $ZIP_NAME
 SHA-256: $SHA256
@@ -95,7 +95,7 @@ Install:
 TXT
 )
 
-gh release create "$TAG" "$ZIP_PATH" \
+gh release create "${TAG}" "$ZIP_PATH" \
   --title "$TITLE" \
   --notes "$NOTES"
 
