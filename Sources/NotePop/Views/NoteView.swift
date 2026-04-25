@@ -4,12 +4,14 @@ struct NoteView: View {
     @ObservedObject var appState: AppState
 
     @State private var focusToken: Int = 0
+    @State private var appearanceToken: Int = 0
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
             NativeTextView(
                 text: $appState.noteText,
                 focusToken: $focusToken,
+                appearanceToken: $appearanceToken,
                 isEditable: !appState.isExporting
             )
 
@@ -25,6 +27,9 @@ struct NoteView: View {
         .animation(.easeInOut(duration: 0.5), value: appState.isExporting)
         .onReceive(NotificationCenter.default.publisher(for: .notePopFocusEditor)) { _ in
             focusToken &+= 1
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .notePopAppearanceChanged)) { _ in
+            appearanceToken &+= 1
         }
     }
 }
@@ -49,6 +54,7 @@ private struct ExportingBadge: View {
 struct NativeTextView: NSViewRepresentable {
     @Binding var text: String
     @Binding var focusToken: Int
+    @Binding var appearanceToken: Int
     var isEditable: Bool
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -58,6 +64,8 @@ struct NativeTextView: NSViewRepresentable {
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = true
         textView.font = .systemFont(ofSize: NSFont.systemFontSize)
+        textView.textColor = .labelColor
+        textView.insertionPointColor = .labelColor
         textView.drawsBackground = false
         textView.backgroundColor = .clear
         textView.delegate = context.coordinator
@@ -87,6 +95,11 @@ struct NativeTextView: NSViewRepresentable {
         }
 
         updateScrollbarVisibility(scrollView: nsView, textView: textView)
+
+        if context.coordinator.lastAppearanceToken != appearanceToken {
+            context.coordinator.lastAppearanceToken = appearanceToken
+            applyCurrentAppearance(to: textView)
+        }
 
         // When focusToken changes, focus the text view.
         if context.coordinator.lastFocusToken != focusToken {
@@ -122,9 +135,24 @@ struct NativeTextView: NSViewRepresentable {
         Coordinator(text: $text)
     }
 
+    private func applyCurrentAppearance(to textView: NSTextView) {
+        // Ensure foreground/insertion colors track system appearance.
+        textView.textColor = .labelColor
+        textView.insertionPointColor = .labelColor
+
+        let fullRange = NSRange(location: 0, length: (textView.string as NSString).length)
+        if let storage = textView.textStorage {
+            storage.beginEditing()
+            storage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
+            storage.endEditing()
+        }
+        textView.needsDisplay = true
+    }
+
     final class Coordinator: NSObject, NSTextViewDelegate {
         @Binding var text: String
         var lastFocusToken: Int = 0
+        var lastAppearanceToken: Int = 0
 
         init(text: Binding<String>) {
             self._text = text

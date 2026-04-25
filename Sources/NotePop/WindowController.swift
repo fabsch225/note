@@ -56,21 +56,39 @@ final class NoteWindowController {
                 self?.applyWindowBackgroundOpacity(newValue)
             }
             .store(in: &cancellables)
+
+        // Ensure the window responds to Light/Dark changes even when it was created while hidden.
+        let appearanceTrackingView = AppearanceTrackingView { [weak self] in
+            guard let self else { return }
+            // Notify SwiftUI/AppKit subviews (e.g. NSTextView) to refresh their dynamic colors.
+            NotificationCenter.default.post(name: .notePopAppearanceChanged, object: nil)
+            self.window.displayIfNeeded()
+        }
+        appearanceTrackingView.autoresizingMask = [.width, .height]
+        appearanceTrackingView.addSubview(hosting)
+        hosting.frame = appearanceTrackingView.bounds
+        window.contentView = appearanceTrackingView
     }
 
     private func applyWindowBackgroundOpacity(_ opacity: Double) {
         let clamped = min(max(opacity, 0.0), 1.0)
-        window.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(clamped)
+        // Important: calling `withAlphaComponent` on a dynamic system color can resolve it
+        // to a fixed value. Use a dynamic provider so Light/Dark changes keep working.
+        window.backgroundColor = NSColor(name: nil, dynamicProvider: { _ in
+            NSColor.windowBackgroundColor.withAlphaComponent(clamped)
+        })
     }
 
     func show() {
         applyPinnedState()
+        applyWindowBackgroundOpacity(appState.settings.windowOpacity)
         window.makeKeyAndOrderFront(nil)
         focusEditor()
     }
 
     func bringToFront() {
         applyPinnedState()
+        applyWindowBackgroundOpacity(appState.settings.windowOpacity)
         window.makeKeyAndOrderFront(nil)
         focusEditor()
     }
@@ -160,6 +178,32 @@ final class NoteWindowController {
     }
 }
 
+private final class AppearanceTrackingView: NSView {
+    private let onChange: () -> Void
+
+    init(onChange: @escaping () -> Void) {
+        self.onChange = onChange
+        super.init(frame: .zero)
+        wantsLayer = true
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        onChange()
+    }
+
+    override func layout() {
+        super.layout()
+        if let subview = subviews.first {
+            subview.frame = bounds
+        }
+    }
+}
+
 @MainActor
 final class SettingsWindowController {
     private let settings: SettingsStore
@@ -186,8 +230,10 @@ final class SettingsWindowController {
         window.contentView = hosting
         window.center()
 
-        NotificationCenter.default.addObserver(forName: .notePopShowSettings, object: nil, queue: .main) { @MainActor [weak self] _ in
-            self?.show()
+        NotificationCenter.default.addObserver(forName: .notePopShowSettings, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                self?.show()
+            }
         }
     }
 
@@ -200,4 +246,5 @@ final class SettingsWindowController {
 extension Notification.Name {
     static let notePopFocusEditor = Notification.Name("NotePop.FocusEditor")
     static let notePopShowSettings = Notification.Name("NotePop.ShowSettings")
+    static let notePopAppearanceChanged = Notification.Name("NotePop.AppearanceChanged")
 }
